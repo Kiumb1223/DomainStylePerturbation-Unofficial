@@ -7,4 +7,4 @@
 # 具体配置的时候，看是否存在 ckpt_path 路径中的文件是否存在，则切换为推理模式
 
 ckpt_path: Null  
-encoder_path: 'checkpoints/encoder[first_31_layers_vgg].pth'
+encoder_path: 'checkpoints/encoder_first_31_layers_vgg.pth'
