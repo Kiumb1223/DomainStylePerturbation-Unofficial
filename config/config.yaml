@@ -1,0 +1,41 @@
+# --------------------------------
+# 实验配置
+# device : GPU device id
+# log_dir : Directory path to save log
+# lr : Learning rate
+# lr_decay : Learning rate decay
+# batch_size : Batch size
+# epochs : Number of epochs
+# save_model_interval : Interval to save model
+exp:
+  seed: 3407
+  device: 'cuda:2'
+  exp_dir: './exps'
+  lr: 1e-4
+  lr_decay: 5e-5
+  batch_size: 8
+  num_workers: 8
+  max_iter: 160000
+  save_model_interval: 10
+
+# --------------------------------
+# 数据集配置
+# content_dir : Directory path to a batch of content images
+# style_dir : Directory path to a batch of style images
+data:
+  content_dir: 'datasets/RSCM'
+  style_dir: 'datasets/RSCM'
+
+# --------------------------------
+# 损失权重
+Loss:
+  - content_loss: 1.
+  - style_loss: 10.
+  # for Domain VAE
+  - kl_loss: 1.
+  - rec_loss: 5.
+
+# --------------------------------
+defaults:
+  # 记录模型权重路径
+  - model: DSP
