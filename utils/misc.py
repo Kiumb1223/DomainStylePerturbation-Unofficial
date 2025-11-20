@@ -10,8 +10,8 @@ import sys
 import yaml 
 import torch
 import random
-import logging
 import numpy as np
+from loguru import logger 
 from argparse import Namespace
 from typing import Optional
 from tabulate import tabulate
@@ -20,8 +20,6 @@ from easydict import EasyDict as edict
 
 
 __all__ = ["collect_env", "get_model_info","get_model_configuration","get_exp_info","set_random_seed", "symlink","load_config"]
-
-logger = logging.getLogger(__name__)
 
 
 def collect_env() -> str:

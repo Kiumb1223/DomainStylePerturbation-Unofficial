@@ -78,7 +78,7 @@ class DSPNet(nn.Module):
         self.enc_3.load_state_dict(tmp_enc_3.state_dict())
         self.enc_4.load_state_dict(tmp_enc_4.state_dict())
 
-        logger.info(f'Load ckpt of [Encoder] from : {ckpt_path}.')
+        logger.info(f'Load ckpt of [Encoder] from : {encoder_path}.')
 
     # @property
     # def trainable_params(self):
@@ -102,16 +102,16 @@ class DSPNet(nn.Module):
 
     def calc_content_loss(self, input, target):
         assert (input.size() == target.size())
-        assert (target.requires_grad is False)
-        return self.mse_loss(input, target)
+        # assert (target.requires_grad is False)
+        return F.mse_loss(input, target)
 
     def calc_style_loss(self, input, target):
         assert (input.size() == target.size())
         assert (target.requires_grad is False)
         input_mean, input_std = calc_mean_std(input)
         target_mean, target_std = calc_mean_std(target)
-        return self.mse_loss(input_mean, target_mean) + \
-               self.mse_loss(input_std, target_std)
+        return F.mse_loss(input_mean, target_mean) + \
+               F.mse_loss(input_std, target_std)
 
     def calc_domain_KL_loss(self,norm_style_stats,eps=1e-8):
         bz,d = norm_style_stats.shape 
@@ -140,12 +140,12 @@ class DSPNet(nn.Module):
             style_feats = self.encode_with_intermediate(style)
 
             # 1. train Domain-VAE
-            ori_style_stats = calc_feat_mean_std(style_feats) # [B,1024]
-            norm_style_stats = self.fc_encoder(ori_style_stats)
-            rec_style_stats = self.fc_decoder(norm_style_stats)
+            ori_style_stats = calc_feat_mean_std(style_feats[-1]) # [B,1024]
+            norm_style_stats = self.fc_encoder(ori_style_stats)   # [B,1024]
+            rec_style_stats = self.fc_decoder(norm_style_stats[:,:512])
 
             # 2. Apply AdaIN
-            t = adain(content_feat, style_feats[-1])
+            t = adain(content_feat, rec_style_stats)
             t = alpha * t + (1 - alpha) * content_feat
             g_t = self.decoder(t)   
 

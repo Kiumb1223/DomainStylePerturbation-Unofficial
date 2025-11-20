@@ -28,12 +28,12 @@ data:
 
 # --------------------------------
 # 损失权重
-Loss:
-  - content_loss: 1.
-  - style_loss: 10.
+loss:
+  content_loss: 1.
+  style_loss: 10.
   # for Domain VAE
-  - kl_loss: 1.
-  - rec_loss: 5.
+  kl_loss: 1.
+  rec_loss: 5.
 
 # --------------------------------
 defaults:

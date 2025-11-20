@@ -30,14 +30,14 @@ from utils.misc import set_random_seed,get_model_info
 def main(config:OmegaConf):
     # ----------------------
     # 1. 基础配置
-    # 固定随机种子
-    set_random_seed(config.exp.seed)
     # 以当前时间步为实验文件夹
     exp_dir = config.exp.exp_dir + os.sep + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     os.makedirs(exp_dir,exist_ok=True)
+
     # 权重保存目录
     ckpt_dir = exp_dir + os.sep + 'checkpoints'
     os.makedirs(ckpt_dir,exist_ok=True)
+
     # 日志文件目录
     setup_logger(exp_dir)
     # tensorboard 目录
@@ -45,9 +45,12 @@ def main(config:OmegaConf):
     os.makedirs(tb_dir,exist_ok=True)
     writer = SummaryWriter(tb_dir)
     
-    logger.info('Exp Directory : {exp_dir}.')
-    logger.info('Ckpt Directory : {ckpt_dir}.')
-    logger.info('Tensorboard Directory : {tb_dir}.')
+    logger.info(f'Exp Directory : {exp_dir}.')
+    logger.info(f'Ckpt Directory : {ckpt_dir}.')
+    logger.info(f'Tensorboard Directory : {tb_dir}.')
+
+    # 固定随机种子
+    set_random_seed(config.exp.seed)
 
     # ----------------------
     # 2. 模型配置
@@ -64,7 +67,7 @@ def main(config:OmegaConf):
     content_iter = iter(DataLoader(
         dataset=content_dataset,
         batch_size=config.exp.batch_size,
-        shuffle=True,pin_memory=True,
+        pin_memory=True,
         sampler=InfiniteSamplerWrapper(content_dataset),
         num_workers=config.exp.num_workers
     ))
@@ -72,7 +75,7 @@ def main(config:OmegaConf):
     style_iter = iter(DataLoader(
         dataset=style_dataset,
         batch_size=config.exp.batch_size,
-        shuffle=True,pin_memory=True,
+        pin_memory=True,
         sampler=InfiniteSamplerWrapper(style_dataset),
         num_workers=config.exp.num_workers
     ))

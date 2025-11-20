@@ -38,6 +38,7 @@ tensorboard==2.20.0
 numpy==1.26.2
 opencv-python==4.9.0.80
 hydra-core==1.3.2
+pillow==9.5.0
 loguru
 easydict 
 tabulate
