@@ -15,15 +15,20 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset
 
+__all__ = [
+    'transform',
+    'MyDataset'
+]
+
+transform = A.Compose([
+    A.Resize(512,512),
+    A.RandomCrop(256,256),
+    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ToTensorV2()
+])  
 
 class MyDataset(Dataset):
 
-    transform = A.Compose([
-        A.Resize(512,512),
-        A.RandomCrop(256,256),
-        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ToTensorV2()
-    ])  
 
     def __init__(self,root):
         super().__init__()
@@ -33,7 +38,7 @@ class MyDataset(Dataset):
         # root/rain/*.jpg
         self.paths = list(Path(self.root).glob('**/*.jpg'))
 
-        self.transform = MyDataset.transform
+        self.transform = transform
     
     def __len__(self):
         return len(self.paths)
