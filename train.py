@@ -86,14 +86,45 @@ def main(config:OmegaConf):
         net.parameters(),
         lr=config.exp.lr,weight_decay=config.exp.lr_decay
     )
-    lambda_lr = lambda it: 1. / (1. + config.exp.lr_decay * it)
-    scheduler = LambdaLR(optimizer,lr_lambda=lambda_lr)
+    def lr_lambda(it):
+        """
+        it：从 0 开始的 step 计数
+        warmup 阶段：线性
+        之后： 1 / (1 + lr_decay * it) 衰减
+        """
+        warmup_iter = getattr(config.exp, "warmup_iter", None)
+
+        if warmup_iter is not None and it < warmup_iter:
+            # 线性 warmup
+            return float(it + 1) / float(warmup_iter)
+        else:
+            # lr 衰减策略
+            return 1.0 / (1.0 + config.exp.lr_decay * it)
+        
+    scheduler = LambdaLR(optimizer,lr_lambda=lr_lambda)
 
 
     # ----------------------
     # 5. 训练
+
+
     logger.info('------------ START TO TRAIN ------------')
+    bt_warmup = False
+
+    if config.exp.warmup_iter is not None:
+        logger.info(f'Use encoder warmup for {config.exp.warmup_iter} iters.')
+        for p in net.decoder.parameters():  
+            p.requires_grad = False
+        bt_warmup = True 
+
     for cur_iter in range(config.exp.max_iter):
+
+        if bt_warmup is True and (config.exp.warmup_iter is not None and cur_iter == config.exp.warmup_iter):
+            logger.info('Warmup finished. Unfreeze decoder.')
+            for p in net.decoder.parameters():
+                p.requires_grad = True
+            
+            bt_warmup = False 
 
         content_imgs = next(content_iter).to(config.exp.device)
         style_imgs = next(style_iter).to(config.exp.device)
@@ -127,22 +158,22 @@ def main(config:OmegaConf):
         writer.add_scalar('rec_loss',loss_dict['loss_Rec'].item(),cur_iter+1)
         writer.add_scalar('loss_total',loss.item(),cur_iter+1)
 
+        if (cur_iter + 1) % config.exp.vis_interval == 0:
+            content_show = content_imgs[0].detach().cpu()
+            style_show   = style_imgs[0].detach().cpu()
+            gt_show      = g_t[0].detach().cpu()
 
-        content_show = content_imgs[0].detach().cpu()
-        style_show   = style_imgs[0].detach().cpu()
-        gt_show      = g_t[0].detach().cpu()
+            writer.add_image('grid/content',
+                vutils.make_grid(content_imgs, normalize=True, scale_each=True),
+                cur_iter+1)
 
-        writer.add_image('grid/content',
-            vutils.make_grid(content_imgs, normalize=True, scale_each=True),
-            cur_iter+1)
+            writer.add_image('grid/style',
+                vutils.make_grid(style_imgs, normalize=True, scale_each=True),
+                cur_iter+1)
 
-        writer.add_image('grid/style',
-            vutils.make_grid(style_imgs, normalize=True, scale_each=True),
-            cur_iter+1)
-
-        writer.add_image('grid/g_t',
-            vutils.make_grid(g_t, normalize=True, scale_each=True),
-            cur_iter+1)
+            writer.add_image('grid/g_t',
+                vutils.make_grid(g_t, normalize=True, scale_each=True),
+                cur_iter+1)
 
     writer.close()
 if __name__ == '__main__':

@@ -56,6 +56,8 @@ class DSPNet(nn.Module):
             logger.info(f'Load ckpt from : {ckpt_path}.')
             return 
 
+        # 载入 encoder 权重
+
         encoder_path = ckpt_dict.get('encoder_path',None)
 
         assert encoder_path is not None and os.path.isfile(encoder_path), f'Invaild path :{encoder_path}.'
@@ -79,6 +81,14 @@ class DSPNet(nn.Module):
         self.enc_4.load_state_dict(tmp_enc_4.state_dict())
 
         logger.info(f'Load ckpt of [Encoder] from : {encoder_path}.')
+
+        # 载入 decoder 权重续训
+        decoder_path = ckpt_dict.get('decoder_path',None)
+        if decoder_path is not None and os.path.isfile(decoder_path):
+            decoder_state_dict = torch.load(decoder_path,map_location='cpu')
+            self.decoder.load_state_dict(decoder_state_dict)
+            logger.info(f'Load ckpt of [Decoder] from : {decoder_path}.')
+            
 
     # @property
     # def trainable_params(self):
