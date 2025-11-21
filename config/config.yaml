@@ -5,18 +5,24 @@
 # lr : Learning rate
 # lr_decay : Learning rate decay
 # batch_size : Batch size
-# epochs : Number of epochs
+# warmup_iter : Number of warm-up iterations 
+# max_iter : Number of iterations
 # save_model_interval : Interval to save model
+# vis_interval : Interval to store imgs in Tensorboard
+
 exp:
   seed: 3407
   device: 'cuda:2'
   exp_dir: './exps'
   lr: 1e-4
   lr_decay: 5e-5
-  batch_size: 8
+  batch_size: 32
   num_workers: 8
+  warmup_iter: 5000
   max_iter: 160000
-  save_model_interval: 10
+  save_model_interval: 500000
+  vis_interval: 2500
+
 
 # --------------------------------
 # 数据集配置
@@ -39,3 +45,5 @@ loss:
 defaults:
   # 记录模型权重路径
   - model: DSP
+  # 让Hydra不切换工作目录
+  - hydra: hydra
