@@ -5,6 +5,7 @@
 #
 # 具体配置的时候，看是否存在 ckpt_path 路径中的文件是否存在，则切换为推理模式
 
+name: 'DSP'
 ckpt_path: Null  
 encoder_path: 'checkpoints/encoder_first_31_layers_vgg.pth'
 decoder_path: 'checkpoints/decoder.pth' # 可设置为NULL，不影响训练

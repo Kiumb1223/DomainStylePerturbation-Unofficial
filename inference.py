@@ -4,7 +4,7 @@
 @File     :     inference.py
 @Time     :     2025/11/20 15:42:05
 @Author   :     Louis Swift
-@Desc     :     Inplement the minimal Inferesnce pipeline
+@Desc     :     I]plement the minimal Inferesnce pipeline
                 Input  : single Img with targeted style Img, 
                 Output : result Img  
 '''
