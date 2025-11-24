@@ -6,15 +6,13 @@
 
 ## 1. Dataset Organization
 
-Due to project requirements, I organize the dataset **in the following way**.
-```
-root_dir
-├─ cls_1
-│  └─ *.jpg
-└─ cls_2
-   └─ *.jpg
-```
-So plz modifiy the [relevant code](utils/datasets.py) if you want to use your own dataset.
+Content Dataset: COCO ; Style Dataset : WikiArt.
+
+---
+
+Here is the training result:
+
+![](.assets/training_result.jpg)
 
 ## 2. Ckpt of VGG
 
