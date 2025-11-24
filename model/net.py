@@ -186,7 +186,7 @@ class DSPNet(nn.Module):
             content_feat = self.encode(content)
             rec_style_stats = self.fc_decoder(style)
         
-            t = adain(content_feat, style_feats[-1])
+            t = adain(content_feat, rec_style_stats)
             t = alpha * t + (1 - alpha) * content_feat
             g_t = self.decoder(t)   
 
