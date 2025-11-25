@@ -16,10 +16,10 @@
             repo_or_dir='../DSP',
             model=config.name,
             source='local',
-            ckpt_dict = config
+            ckpt_path = config.ckpt_path
         )
 
-        # NOTE : you have to download the relavent ckpt and place it in the proper location.
+        # NOTE : you can download the relavent ckpt and place it in the proper location.
 
 '''
 
@@ -30,11 +30,6 @@ def DSP(pretrained=True, **kwargs):
     """
     pretrained (bool): load pretrained weights into model
     """
-
-    # ckpt_path = kwargs.get('ckpt_path',None)
-    # ckpt_dict = {}
-    # if ckpt_path is None:
-    #     ckpt_dict['ckpt_path'] = 'https://github.com/Kiumb1223/DomainStylePerturbation-Unofficial/releases/download/trained-ckpt/model_iter_160000.pth'
 
     model = DSPNet(**kwargs)
     if pretrained:
@@ -49,5 +44,5 @@ def DSP(pretrained=True, **kwargs):
             )
 
         model.load_state_dict(state_dict)
-        
+
     return model
