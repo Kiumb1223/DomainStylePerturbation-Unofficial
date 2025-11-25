@@ -4,7 +4,7 @@
 @File     :     inference.py
 @Time     :     2025/11/20 15:42:05
 @Author   :     Louis Swift
-@Desc     :     I]plement the minimal Inferesnce pipeline
+@Desc     :     Inplement the minimal Inferesnce pipeline
                 Input  : single Img with targeted style Img, 
                 Output : result Img  
 '''
@@ -19,7 +19,6 @@ from model.net import DSPNet
 import torch.nn.functional as F
 from omegaconf import OmegaConf
 import torchvision.utils as vutils
-from utils.datasets import transform
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Plz Specify the input image path.')
@@ -44,7 +43,10 @@ def main(args):
 
     # 2. 模型初始化
     cfg_model = OmegaConf.load(args.config)
-    model = DSPNet(cfg_model)
+    model = DSPNet(**cfg_model)
+    state_dict = torch.load(cfg_model.ckpt_path,map_location='cpu')
+    model.load_state_dict(state_dict)
+
     model.to(device)
     model.eval()
 
@@ -53,31 +55,39 @@ def main(args):
     # style_image = Image.open(path_style).convert('RGB')
     
     # 3.1 图像预处理
-    content_img_np = np.asarray(content_image)
+    content_img_np = np.asarray(content_image) / 255.
     ori_H,ori_W,_ = content_img_np.shape
-    content_img_th = transform(content_img_np)
-    content_img_th = content_img_th.unsqueeze(0).to(device)
+    content_img_th = torch.from_numpy(content_img_np).unsqueeze(0)\
+                    .permute(0,3,1,2).to(device).to(torch.float32)
+    content_img_th = F.interpolate(
+        content_img_th,
+        size=(512,512),
+        mode='bilinear',
+        align_corners=False
+    )
 
     # 3.2 随机采样风格因子
     style_factor = torch.randn(1,512).to(device)
     
     # 3.3 前向传播
-    transfer_img = model(content_img_th,style_factor)
+    # for a in range(0,11,1):
+    for a in np.arange(0,1.1,0.1):
+        transfer_img = model(content_img_th,style_factor,alpha=a)
 
-    resized_transfer_img = F.interpolate(
-        transfer_img,
-        size=(ori_H,ori_W),
-        mode='bilinear',
-        align_corners=False
-    )
+        resized_transfer_img = F.interpolate(
+            transfer_img,
+            size=(ori_H,ori_W),
+            mode='bilinear',
+            align_corners=False
+        )
 
-    # 3.4 保存图像
-    name_img = path_content.split(os.sep)[-1].split('.')[0]
+        # 3.4 保存图像
+        name_img = path_content.split(os.sep)[-1].split('.')[0]
 
-    vutils.save_image(
-        resized_transfer_img,
-        os.path.join(path_output,name_img + '_transfered.png')
-    )
+        vutils.save_image(
+            resized_transfer_img,
+            os.path.join(path_output,name_img + f'_transfered({a:.1f}).png')
+        )
 
 if __name__ == '__main__':
     args = parse_args()

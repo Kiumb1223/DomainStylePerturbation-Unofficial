@@ -54,7 +54,13 @@ def main(config:OmegaConf):
 
     # ----------------------
     # 2. 模型配置
-    net = DSPNet(config.model)
+    net = DSPNet(**config.model)
+    if config.model.ckpt_path is not None:
+        state_dict = torch.load(config.model.ckpt_path,map_location='cpu')
+        net.load_state_dict(state_dict)
+        # 取消预热训练策略
+        config.exp.warmup_iter = None
+
     net.to(config.exp.device)
     net.train()
     logger.info("DSP Model Size:\n" + get_model_info(net))
@@ -107,12 +113,11 @@ def main(config:OmegaConf):
     # ----------------------
     # 5. 训练
 
-
     logger.info('------------ START TO TRAIN ------------')
     bt_warmup = False
 
     if config.exp.warmup_iter is not None:
-        logger.info(f'Use encoder warmup for {config.exp.warmup_iter} iters.')
+        logger.info(f'Make [decoder] warmup for {config.exp.warmup_iter} iters.')
         for p in net.decoder.parameters():  
             p.requires_grad = False
         bt_warmup = True 
@@ -159,9 +164,6 @@ def main(config:OmegaConf):
         writer.add_scalar('loss_total',loss.item(),cur_iter+1)
 
         if (cur_iter + 1) % config.exp.vis_interval == 0:
-            content_show = content_imgs[0].detach().cpu()
-            style_show   = style_imgs[0].detach().cpu()
-            gt_show      = g_t[0].detach().cpu()
 
             writer.add_image('grid/content',
                 vutils.make_grid(content_imgs, normalize=True, scale_each=True),

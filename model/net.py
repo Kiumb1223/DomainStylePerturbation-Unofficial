@@ -23,7 +23,12 @@ from .function import \
         adaptive_instance_normalization_Domain_VAE as adain
 
 class DSPNet(nn.Module):
-    def __init__(self,ckpt_dict):
+    def __init__(
+            self,
+            encoder_path,
+            decoder_path,
+            **kwargs
+        ):
         super().__init__()
 
         # 为了计算损失，需要进一步把 encoder 拆开
@@ -43,51 +48,52 @@ class DSPNet(nn.Module):
             for param in getattr(self, name).parameters():
                 param.requires_grad = False
 
-        self.load_ckpt(ckpt_dict)
+        self.load_ckpt(encoder_path,decoder_path)
 
         logger.info('Complete the Initialization of [DSPNet].')
 
-    def load_ckpt(self,ckpt_dict):
-
+    def load_ckpt(self,encoder_path=None,decoder_path=None):
+        '''
         ckpt_path = ckpt_dict.get('ckpt_path',None)
         if ckpt_path is not None and os.path.isfile(ckpt_path):
             state = torch.load(ckpt_path,map_location='cpu')
             self.load_state_dict(state)
             logger.info(f'Load ckpt from : {ckpt_path}.')
             return 
+        '''
 
         # 载入 encoder 权重
 
-        encoder_path = ckpt_dict.get('encoder_path',None)
+        # encoder_path = ckpt_dict.get('encoder_path',None)
+        if encoder_path is not None and os.path.isfile(encoder_path):
+             # assert encoder_path is not None and os.path.isfile(encoder_path), f'Invaild path :{encoder_path}.'
 
-        assert encoder_path is not None and os.path.isfile(encoder_path), f'Invaild path :{encoder_path}.'
+            encoder_state_dict  = torch.load(encoder_path,map_location='cpu')
 
-        encoder_state_dict  = torch.load(encoder_path,map_location='cpu')
+            tmp_encoder = copy.deepcopy(encoder)
+            tmp_encoder.load_state_dict(encoder_state_dict)
 
-        tmp_encoder = copy.deepcopy(encoder)
-        tmp_encoder.load_state_dict(encoder_state_dict)
+            # 再按同样的切片方式拆成 4 段，并把权重拷到 self.enc_*
+            tmp_layers = nn.ModuleList(tmp_encoder.children())
 
-        # 再按同样的切片方式拆成 4 段，并把权重拷到 self.enc_*
-        tmp_layers = nn.ModuleList(tmp_encoder.children())
+            tmp_enc_1 = nn.Sequential(*tmp_layers[:4])
+            tmp_enc_2 = nn.Sequential(*tmp_layers[4:11])
+            tmp_enc_3 = nn.Sequential(*tmp_layers[11:18])
+            tmp_enc_4 = nn.Sequential(*tmp_layers[18:31])
 
-        tmp_enc_1 = nn.Sequential(*tmp_layers[:4])
-        tmp_enc_2 = nn.Sequential(*tmp_layers[4:11])
-        tmp_enc_3 = nn.Sequential(*tmp_layers[11:18])
-        tmp_enc_4 = nn.Sequential(*tmp_layers[18:31])
+            self.enc_1.load_state_dict(tmp_enc_1.state_dict())
+            self.enc_2.load_state_dict(tmp_enc_2.state_dict())
+            self.enc_3.load_state_dict(tmp_enc_3.state_dict())
+            self.enc_4.load_state_dict(tmp_enc_4.state_dict())
 
-        self.enc_1.load_state_dict(tmp_enc_1.state_dict())
-        self.enc_2.load_state_dict(tmp_enc_2.state_dict())
-        self.enc_3.load_state_dict(tmp_enc_3.state_dict())
-        self.enc_4.load_state_dict(tmp_enc_4.state_dict())
-
-        logger.info(f'Load ckpt of [Encoder] from : {encoder_path}.')
+            logger.info(f'[DSENet] Load ckpt of [Encoder] from : {encoder_path}.')
 
         # 载入 decoder 权重续训
-        decoder_path = ckpt_dict.get('decoder_path',None)
+        # decoder_path = ckpt_dict.get('decoder_path',None)
         if decoder_path is not None and os.path.isfile(decoder_path):
             decoder_state_dict = torch.load(decoder_path,map_location='cpu')
             self.decoder.load_state_dict(decoder_state_dict)
-            logger.info(f'Load ckpt of [Decoder] from : {decoder_path}.')
+            logger.info(f'[DSENet] Load ckpt of [Decoder] from : {decoder_path}.')
             
 
     # @property
@@ -123,24 +129,16 @@ class DSPNet(nn.Module):
         return F.mse_loss(input_mean, target_mean) + \
                F.mse_loss(input_std, target_std)
 
-    def calc_domain_KL_loss(self,norm_style_stats,eps=1e-8):
-        bz,d = norm_style_stats.shape 
-        c = d // 2 
-        
-        mu = norm_style_stats[:,:c]
-        sigma = norm_style_stats[:,c:] + eps 
-
-        var = sigma.pow(2)
-        logvar = var.log() 
-
-        # KL per dimension:
+    def calc_domain_KL_loss(self,mu,logvar):
+        # KL divergence to N(0, I)
         # 0.5 * (mu^2 + sigma^2 - log(sigma^2) - 1)
-        kl = .5 * (mu.pow(2) + var - logvar - 1.)
+        kl_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
+        loss_KL = kl_div.mean()
 
-        return kl.mean()
+        return loss_KL
      
     def calc_domain_Rec_loss(self,ori_style_stats,rec_style_states):
-        return F.mse_loss(ori_style_stats,rec_style_states,reduction='sum')
+        return F.mse_loss(ori_style_stats,rec_style_states,reduction='mean')
 
     def forward(self,content, style, alpha=1.0):
         assert 0.0 <= alpha <= 1.0 
@@ -150,9 +148,15 @@ class DSPNet(nn.Module):
             style_feats = self.encode_with_intermediate(style)
 
             # 1. train Domain-VAE
-            ori_style_stats = calc_feat_mean_std(style_feats[-1]) # [B,1024]
-            norm_style_stats = self.fc_encoder(ori_style_stats)   # [B,1024]
-            rec_style_stats = self.fc_decoder(norm_style_stats[:,:512])
+            ori_style_stats  = calc_feat_mean_std(style_feats[-1]) # [B,1024]
+            mu_logvar = self.fc_encoder(ori_style_stats)   # [B,1024]
+            mu,logvar = mu_logvar.chunk(2,dim=1) # [B,512] [B,512]
+
+            # 1.1 reparameterization trick 
+            std = torch.exp(.5 * logvar)
+            eps = torch.randn_like(std)
+            z = mu + eps * std # [B,512]
+            rec_style_stats  = self.fc_decoder(z)
 
             # 2. Apply AdaIN
             t = adain(content_feat, rec_style_stats)
@@ -170,7 +174,7 @@ class DSPNet(nn.Module):
                 loss_s += self.calc_style_loss(g_t_feats[i], style_feats[i])
 
             # 3.1.2 calc loss about Domain-VAE
-            loss_KL = self.calc_domain_KL_loss(norm_style_stats)
+            loss_KL = self.calc_domain_KL_loss(mu,logvar)
             loss_Rec = self.calc_domain_Rec_loss(ori_style_stats,rec_style_stats)
 
             loss_dict = {
