@@ -25,8 +25,8 @@ from .function import \
 class DSPNet(nn.Module):
     def __init__(
             self,
-            encoder_path,
-            decoder_path,
+            encoder_path=None,
+            decoder_path=None,
             **kwargs
         ):
         super().__init__()
